@@ -1,0 +1,4 @@
+name = "KossyX-Setup-GCS"
+# badges = ["travis"]
+module_maker="ModuleBuildTiny"
+

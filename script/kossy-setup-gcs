@@ -1,0 +1,436 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use utf8;
+use File::Path qw/mkpath/;
+use Getopt::Long;
+use Pod::Usage;
+use Text::Xslate;
+use Data::Section::Simple qw(get_data_section);
+use File::ShareDir qw/dist_file/;
+use File::Copy;
+use MIME::Base64;
+use Encode;
+use File::Basename;
+
+use 5.014002;
+
+require Kossy;
+
+GetOptions(
+    'help' => \my $help,
+) or pod2usage(0);
+pod2usage(1) if $help;
+
+sub _mkpath {
+    my $d = shift;
+    print "mkdir $d\n";
+    mkpath $d;
+}
+
+my $module = shift @ARGV or pod2usage(0);
+my @pkg       = split /::/, $module;
+my $dist      = join "-", @pkg;
+my $path      = join "/", @pkg;
+my $uc_module = uc(join "", @pkg);
+my $lc_module = lc(join "", @pkg);
+
+my $tx = Text::Xslate->new(syntax => 'TTerse');
+
+mkdir $dist or die $!;
+chdir $dist or die $!;
+_mkpath "lib/$path/DB";
+_mkpath "views";
+_mkpath "t";
+
+my @share_files = qw!
+public/css/bootstrap-theme.min.css
+public/css/bootstrap.min.css
+public/favicon.ico
+public/fonts/glyphicons-halflings-regular.ttf
+public/fonts/glyphicons-halflings-regular.woff
+public/fonts/glyphicons-halflings-regular.woff2
+public/js/bootstrap.min.js
+public/js/jquery.min.js
+!;
+
+foreach my $file ( @share_files ) {
+    print "writing $file\n";
+    _mkpath( dirname($file) ) if ! -d dirname($file);
+    copy dist_file('KossyX-Setup-GCS',$file), $file;
+}
+
+my $files = get_data_section();
+my $args = {
+    module    => $module,
+    uc_module => $uc_module,
+    lc_module => $lc_module,
+    path      => $path,
+    dist      => $dist,
+    myver     => $Kossy::VERSION,
+    pod       => '=',
+    # pacify Minilla's eagerness to replace VERSION everywhere
+    vveerrssiioonn  => 'VERSION',
+};
+foreach my $fkey ( keys %{$files} ) {
+    my $path = $tx->render_string($fkey, $args);
+    my $content = $tx->render_string($files->{$fkey}, $args);
+    $content = encode_utf8($content);
+    print "writing $path\n";
+    open(my $fh, '>', $path);
+    print $fh $content
+}
+
+=head1 SYNOPSIS
+
+    % kossy-setup-gcs MyApp
+
+=cut
+
+1;
+__DATA__
+@@ lib/[% path %].pm
+package [% module %];
+
+use strict;
+use warnings;
+use utf8;
+use v5.14; # state variables
+
+our $[% vveerrssiioonn %] = 0.001;
+
+use [% module %]::DB;
+use parent qw(Exporter);
+our @EXPORT_OK = qw(db);
+
+sub db {
+    state $db ||= do {
+        my %db = (
+            host     => $ENV{[% uc_module %]_DB_HOST}     || 'localhost',
+            port     => $ENV{[% uc_module %]_DB_PORT}     || 3306,
+            database => $ENV{[% uc_module %]_DB_NAME}     || '[% lc_module %]_db',
+            username => $ENV{[% uc_module %]_DB_USER}     || '[% lc_module %]_dba',
+            password => $ENV{[% uc_module %]_DB_PASSWORD},
+        );
+        [% module %]::DB->new(connect_info => [
+            "dbi:mysql:dbname=$db{database};host=$db{host};port=$db{port}", $db{username}, $db{password}, {
+                RaiseError => 1,
+                PrintError => 0,
+                AutoInactiveDestroy => 1,
+            },],
+        );
+    };
+}
+
+1;
+
+[% pod %]encoding utf-8
+
+[% pod %]head1 NAME
+
+[% module %] - It's new $module
+
+[% pod %]head1 SYNOPSIS
+
+    use [% module %]
+
+[% pod %]head1 DESCRIPTION
+
+[% module %] is ...
+
+[% pod %]head1 AUTHORS
+
+This Author E<lt>change-me@example.netE<gt>
+
+[% pod %]cut
+
+@@ lib/[% path %]/DB.pm
+package [% module %]::DB;
+use strict;
+use warnings;
+
+use Mouse;
+extends qw/Aniki/;
+
+__PACKAGE__->setup(
+    filter => '[% module %]::DB::Filter',
+    result => '[% module %]::DB::Result',
+    row    => '[% module %]::DB::Row',
+    schema => '[% module %]::DB::Schema',
+);
+
+__PACKAGE__->meta->make_immutable();
+
+sub use_strict_query_builder {
+    # Allow complex WHERE clauses in SQL::Maker
+    return 0;
+}
+
+1;
+
+@@ lib/[% path %]/DB/Filter.pm
+package [% module %]::DB::Filter;
+use strict;
+use warnings;
+
+use Aniki::Filter::Declare;
+
+use Scalar::Util qw(blessed);
+use Time::Moment;
+
+inflate qr/_date$/ => sub {
+    my $str = shift;
+    $str =~ s/\.\d+$//;
+    return Time::Moment->from_string($str.'+1100', lenient => 1);
+};
+
+deflate qr/_date$/ => sub {
+    my $tm = shift;
+    return $tm->strftime('%F %T%f')
+        if (blessed $tm && $tm->isa('Time::Moment'));
+    return $tm;
+};
+
+1;
+
+@@ lib/[% path %]/DB/Result.pm
+package [% module %]::DB::Result;
+use strict;
+use warnings;
+
+use Mouse;
+extends qw/Aniki::Result::Collection/;
+
+1;
+
+@@ lib/[% path %]/DB/Row.pm
+package [% module %]::DB::Row;
+use strict;
+use warnings;
+
+use Mouse;
+extends qw/Aniki::Row/;
+
+1;
+
+@@ lib/[% path %]/DB/Schema.pm
+package [% module %]::DB::Schema;
+use strict;
+use warnings;
+
+use DBIx::Schema::DSL;
+use Aniki::Schema::Relationship::Declare;
+
+database 'MySQL';
+
+create_table 'user' => columns {
+    integer 'id',            'primary_key' => 1;
+    varchar 'name',          not_null(), 'length' => 64;
+    varchar 'password',      not_null(), 'length' => 32;
+    tinyint 'is_active',     not_null(), 'default' => 1;
+};
+
+# To generate the SQL tables run :
+#   perl -Ilib -M[% module %]::DB::Schema -E 'say [% module %]::DB::Schema->output()'
+
+1;
+
+@@ lib/[% path %]/Web.pm
+package [% module %]::Web;
+
+use strict;
+use warnings;
+use utf8;
+use Kossy;
+
+use [% module %] qw(db);
+
+my ($SELF, $C);
+
+sub session : lvalue {
+    $C->req->env->{"psgix.session"};
+}
+
+sub stash {
+    $C->stash;
+}
+
+filter 'set_global' => sub {
+    my ($app) = @_;
+    sub {
+        my ($self, $c) = @_;
+        $SELF = $self;
+        $C = $c;
+        $app->($self, $c);
+    }
+};
+
+filter 'set_title' => sub {
+    my $app = shift;
+    sub {
+        my ( $self, $c )  = @_;
+        $c->stash->{site_name} = __PACKAGE__;
+        $app->($self, $c);
+    }
+};
+
+get '/' => [qw/set_title/] => sub {
+    my ( $self, $c )  = @_;
+    $c->render('index.tx', { greeting => "Hello" });
+};
+
+get '/json' => sub {
+    my ( $self, $c )  = @_;
+    my $result = $c->req->validator([
+        'q' => {
+            default => 'Hello',
+            rule => [
+                [['CHOICE',qw/Hello Bye/],'Hello or Bye']
+            ],
+        }
+    ]);
+    $c->render_json({ greeting => $result->valid->get('q') });
+};
+
+1;
+
+@@ views/base.tx
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html" charset="utf-8">
+<title>[% module %]</title>
+<link rel="shortcut icon" href="<: $c.req.uri_for('/favicon.ico') :>" type="image/vnd.microsoft.icon" />
+<link rel="stylesheet" href="<: $c.req.uri_for('/css/bootstrap.min.css') :>">
+<style>
+body {
+  padding-top: 60px;
+}
+</style>
+</head>
+<body>
+
+<nav class="navbar navbar-default navbar-fixed-top">
+<div class="container-fluid">
+<div class="navbar-header">
+<button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse-1" aria-expanded="false">
+<span class="sr-only">Toggle navigation</span>
+<span class="icon-bar"></span>
+<span class="icon-bar"></span>
+<span class="icon-bar"></span>
+</button>
+<a class="navbar-brand" href="<: $c.req.uri_for('/') :>">[% module %]</a>
+</div><!--/.nav-header -->
+<div class="collapse navbar-collapse" id="navbar-collapse-1">
+<ul class="nav navbar-nav">
+<li class="active"><a href="<: $c.req.uri_for('/') :>">Home</a></li>
+<li><a href="#about">About</a></li>
+<li><a href="#contact">Contact</a></li>
+</ul>
+</div><!-- /.navbar-collapse -->
+</div><!-- /.container-fluid -->
+</nav>
+
+<div class="container">
+
+: block content -> { }
+
+</div> <!-- /container -->
+
+<script type="text/javascript" src="<: $c.req.uri_for('/js/jquery.min.js') :>"></script>
+<script type="text/javascript" src="<: $c.req.uri_for('/js/bootstrap.min.js') :>"></script>
+</body>
+</html>
+
+@@ views/index.tx
+: cascade base
+: around content -> {
+<h1><: $greeting :> <: $c.stash.site_name :></h1>
+<p>Use this document as a way to quick start any new project.<br> All you get is this message and a barebones HTML document.</p>
+: }
+
+@@ .gitignore
+/.build/
+/_build/
+/_build_params
+/Build
+/Build.bat
+/blib
+/t/data/
+
+/carton.lock
+/.carton/
+/local/
+
+nytprof.out
+nytprof/
+
+cover_db/
+
+*.bak
+*.old
+*~
+*.swp
+*.o
+*.obj
+
+!Build/
+!LICENSE
+
+MYMETA.*
+
+/[% dist %]-*
+
+@@ app.psgi
+use FindBin;
+use lib "$FindBin::Bin/extlib/lib/perl5";
+use lib "$FindBin::Bin/lib";
+use File::Basename;
+use Plack::Builder;
+use [% module %]::Web;
+
+my $root_dir = File::Basename::dirname(__FILE__);
+
+$ENV{[% uc_module %]_DB_PASSWORD} = 'MyS1kr3t!';
+
+my $app = [% module %]::Web->psgi($root_dir);
+builder {
+    enable 'ReverseProxy';
+    enable 'Static',
+        path => qr!^/(?:(?:css|js|img)/|favicon\.ico$)!,
+        root => $root_dir . '/public';
+    enable 'Session::Cookie',
+        session_key => "[% lc_module %]_session",
+        secret      => $ENV{[% uc_module %]_SESSION_SECRET} || '[$ lc_module %]_ck!ss';
+    $app;
+};
+
+@@ cpanfile
+requires 'perl',                       '5.014002';
+requires 'Aniki',                      '1.03';
+requires 'Kossy',                      '[% myver %]';
+requires 'Mouse',                      'v2.4.9';
+requires 'Plack::Middleware::Session', '0.30';
+
+on 'test' => sub {
+    requires 'Test::More', '0.98';
+};
+
+@@ t/00_compile.t
+use strict;
+use warnings;
+use Test::More;
+
+my @modules = qw(
+    [% module %]
+    [% module %]::DB
+    [% module %]::Web
+);
+for my $mod (@modules) {
+    use_ok($mod);
+}
+
+done_testing;
+
+
