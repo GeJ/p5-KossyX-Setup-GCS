@@ -1,5 +1,5 @@
 {
-   "abstract" : "It's new $module",
+   "abstract" : "An alternative to kossy-setup to fit my needs",
    "author" : [
       "Geraud CONTINSOUZAS <gcs@cpan.org>"
    ],
@@ -42,7 +42,10 @@
       },
       "runtime" : {
          "requires" : {
-            "perl" : "5.008001"
+            "Aniki" : "1.03",
+            "Kossy" : "0.40",
+            "Mouse" : "v2.4.9",
+            "perl" : "5.014002"
          }
       },
       "test" : {
@@ -52,6 +55,17 @@
       }
    },
    "release_status" : "unstable",
-   "version" : "0.01",
+   "resources" : {
+      "bugtracker" : {
+         "web" : "https://github.com/GeJ/p5-KossyX-Setup-GCS/issues"
+      },
+      "homepage" : "https://github.com/GeJ/p5-KossyX-Setup-GCS",
+      "repository" : {
+         "type" : "git",
+         "url" : "git://github.com/GeJ/p5-KossyX-Setup-GCS.git",
+         "web" : "https://github.com/GeJ/p5-KossyX-Setup-GCS"
+      }
+   },
+   "version" : "0.001",
    "x_serialization_backend" : "JSON::PP version 2.27400"
 }
