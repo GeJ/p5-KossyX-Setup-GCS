@@ -19,4 +19,4 @@ it under the same terms as Perl itself.
 
 # AUTHOR
 
-Geraud CONTINSOUZAS <geraud.continsouzas@skazy.nc>
+Geraud CONTINSOUZAS <gcs@cpan.org>

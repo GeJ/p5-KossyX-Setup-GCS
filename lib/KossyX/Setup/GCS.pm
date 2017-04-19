@@ -77,7 +77,7 @@ it under the same terms as Perl itself.
 
 =head1 AUTHOR
 
-Geraud CONTINSOUZAS E<lt>geraud.continsouzas@skazy.ncE<gt>
+Geraud CONTINSOUZAS E<lt>gcs@cpan.orgE<gt>
 
 =cut
 
