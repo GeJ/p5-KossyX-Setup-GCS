@@ -407,11 +407,14 @@ builder {
 };
 
 @@ cpanfile
-requires 'perl',                       '5.014002';
-requires 'Aniki',                      '1.03';
-requires 'Kossy',                      '[% myver %]';
-requires 'Mouse',                      'v2.4.9';
-requires 'Plack::Middleware::Session', '0.30';
+requires 'perl',                            '5.014002';
+requires 'Aniki',                           '1.05';
+requires 'Kossy',                           '[% myver %]';
+requires 'Mouse',                           'v2.4.9';
+requires 'Plack::Middleware::ReverseProxy', '0.15';
+requires 'Plack::Middleware::Session',      '0.30';
+requires 'Server::Starter',                 '0.33';
+requires 'Time::Moment',                    '0.42';
 
 on 'test' => sub {
     requires 'Test::More', '0.98';
