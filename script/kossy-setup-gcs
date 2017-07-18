@@ -47,12 +47,24 @@ _mkpath "t";
 my @share_files = qw!
 public/css/bootstrap-theme.min.css
 public/css/bootstrap.min.css
+public/css/bulma.min.css
+public/css/font-awesome.min.css
 public/favicon.ico
+public/fonts/fontawesome-webfont.ttf
+public/fonts/fontawesome-webfont.woff
+public/fonts/fontawesome-webfont.woff2
 public/fonts/glyphicons-halflings-regular.ttf
 public/fonts/glyphicons-halflings-regular.woff
 public/fonts/glyphicons-halflings-regular.woff2
+public/js/axios.min.js
 public/js/bootstrap.min.js
 public/js/jquery.min.js
+public/js/lodash.min.js
+public/js/vue.min.js
+web-dev/.babelrc
+web-dev/package.json
+web-dev/src/app.js
+web-dev/webpack.config.js
 !;
 
 foreach my $file ( @share_files ) {
@@ -362,6 +374,8 @@ body {
 /carton.lock
 /.carton/
 /local/
+
+/web-dev/node_modules/
 
 nytprof.out
 nytprof/
